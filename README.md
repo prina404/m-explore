@@ -29,7 +29,7 @@ A couple of details of this A* implementation:
 - It tracks unknown space, it may flag a certain frontier as closest due to a path in unkown space, but the robot may not be able to actually traverse it.
 - It ignores costmaps inflation layers, it simply looks for a plausible path.
 - It has a state-space cutoff to limit the amount of resources needed, in big spaces if a frontier is outside of the search state space, an arbitrarily big distance is assigned to it.
-- Once all frontiers have been computed, they are sorted according to their euclidean distance relative to the robot. The A* distance estimation is performed only on the 20 closest frontiers, to avoid computing thousands of searches for each planner loop. To the farther frontiers and arbitrarily big distance is assigned.
+- Once all frontiers have been computed, they are sorted according to their euclidean distance relative to the robot. The A* distance estimation is performed only on the 20 closest frontiers, to avoid computing thousands of searches for each planner loop. An arbitrarily big distance is assigned to the farther frontiers.
 
 
 ---
