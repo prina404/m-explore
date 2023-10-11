@@ -90,6 +90,26 @@ std::vector<Frontier> FrontierSearch::searchFrom(geometry_msgs::Point position)
   std::sort(
       frontier_list.begin(), frontier_list.end(),
       [](const Frontier& f1, const Frontier& f2) { return f1.cost < f2.cost; });
+  
+  int cnt = 0;
+  for (auto& frontier : frontier_list) {
+    if (cnt++ < 15) {
+      uint goalx, goaly;
+      costmap_->worldToMap(frontier.centroid.x, frontier.centroid.y, goalx, goaly);
+      int astarDist = astarCost(mx, my, goalx, goaly);
+      frontier.min_distance = double(astarDist);
+      if (astarDist < 0)
+        frontier.min_distance = 10000;
+    } 
+    else 
+      frontier.min_distance = 10000;
+    
+    frontier.cost = frontierCost(frontier);
+  }
+  std::sort(
+      frontier_list.begin(), frontier_list.end(),
+      [](const Frontier& f1, const Frontier& f2) { return f1.cost < f2.cost; });
+
 
   return frontier_list;
 }
@@ -193,5 +213,58 @@ double FrontierSearch::frontierCost(const Frontier& frontier)
   return (potential_scale_ * frontier.min_distance *
           costmap_->getResolution()) -
          (gain_scale_ * frontier.size * costmap_->getResolution());
+}
+double euclideanDist(uint x1, uint y1, uint x2, uint y2) {
+  return sqrt(pow((double(x1) - double(x2)), 2.0) + pow((double(y1) - double(y2)), 2.0));
+}
+
+
+// The following code is going to be really really bad, someday I'll learn C++, maybe.
+int FrontierSearch::astarCost(uint startx, uint starty, uint goalx, uint goaly) {
+  struct Node {
+      uint x;
+      uint y;
+      uint gx;
+      uint gy;
+      int cost;
+      bool operator<(const Node& rhs) const {
+        double d1 = double(cost) + euclideanDist(x,y,gx,gy);
+        double d2 = double(cost) + euclideanDist(rhs.x,rhs.y,gx,gy);
+        return d1 < d2;
+      }
+
+      bool operator==(const Node& rhs) const {
+        return x==rhs.x && y==rhs.y;
+      }
+  };
+
+  std::set<Node> s; 
+  std::set<Node> visited;
+  Node start = {startx, starty, goalx, goaly, 0};
+  s.insert(start);
+  while (!s.empty()) {
+    Node curr = *s.begin();
+    visited.insert(curr);
+    s.erase(s.begin());
+
+    if (visited.size() > 20000) // limit number of visited nodes
+      return 10000;
+
+    if (curr.x == goalx && curr.y == goaly)
+      return curr.cost;
+    
+
+    uint idx = costmap_->getIndex(curr.x, curr.y);
+    for (uint nbr: nhood4(idx, *costmap_)) {
+      if (map_[nbr] != LETHAL_OBSTACLE) {
+        uint mx, my;
+        costmap_->indexToCells(nbr, mx, my);
+        Node nbrCell = {mx, my, goalx, goaly, curr.cost+1};
+        if (visited.count(nbrCell) == 0)
+          s.insert(nbrCell);
+      }
+    }
+  }
+  return -1;
 }
 }
